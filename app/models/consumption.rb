@@ -1,0 +1,2 @@
+class Consumption < ApplicationRecord
+end

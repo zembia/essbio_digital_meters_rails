@@ -7,3 +7,9 @@
 #   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
 #     MovieGenre.find_or_create_by!(name: genre_name)
 #   end
+#
+
+App.delete_all
+
+App.create(name: "Essbio", tag: "essbio") 
+App.create(name: "Nuevo Sur", tag: "nuevo_sur") 
