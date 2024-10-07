@@ -15,4 +15,7 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root 'pages#index'
   get 'pages/index'
+
+  get 'uploaded_file/index', to: 'uploaded_files#index'
+  post 'uploaded_file/upload_files', to: 'uploaded_files#upload_files', as: 'upload_files'
 end

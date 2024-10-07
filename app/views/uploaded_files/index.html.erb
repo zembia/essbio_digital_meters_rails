@@ -1,0 +1,20 @@
+<!-- app/views/example/index.html.erb -->
+
+<h1>Subir Archivos</h1>
+
+<%= form_with url: upload_files_path, local: true do |form| %>
+  <h2>Tipo de Archivo</h2>
+  <%= form.label :file_type_id %>
+  <%= form.collection_select :file_type_id, FileType.all, :id, :name, prompt: "Selecciona un tipo" %>
+
+  <%= form.label :file1 %>
+  <%= form.file_field :file1 %>
+
+  <div>
+    <%= form.label :billing_month, "Mes" %>
+    <%= form.select :billing_month, Date::MONTHNAMES.compact.map.with_index { |month, index| [month, index + 1] }, { prompt: "Selecciona un mes" } %>
+  </div>
+
+  <%= form.submit "Subir Archivo" %>
+<% end %>
+
