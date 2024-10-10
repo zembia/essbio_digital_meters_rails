@@ -40,32 +40,6 @@ namespace :bridge do
     end
   end
 
-  task :assign_random_latlongs, [:center_lat, :center_lon, :radius] => :environment do |t, args|
-    desc "Assign random latlongs to meters"
-
-    Meter.all.each do |meter|
-      angle = rand(0..360)
-      center_lat = args[:center_lat].to_f
-      center_lon = args[:center_lon].to_f
-
-      # Calcular la distancia en radianes
-      distance_in_radians = args[:radius].to_f / 6371000.0 # Radio de la Tierra en metros
-
-      # Calcular la nueva latitud
-      new_lat = Math.asin(Math.sin(center_lat * Math::PI / 180) * Math.cos(distance_in_radians) +
-                          Math.cos(center_lat * Math::PI / 180) * Math.sin(distance_in_radians) * Math.cos(angle * Math::PI / 180)) * 180 / Math::PI
-
-      # Calcular la nueva longitud
-      new_lon = (center_lon * Math::PI / 180) + Math.atan2(Math.sin(angle * Math::PI / 180) * Math.sin(distance_in_radians) * Math.cos(center_lat * Math::PI / 180),
-                                                             Math.cos(distance_in_radians) - Math.sin(center_lat * Math::PI / 180) * Math.sin(new_lat * Math::PI / 180))
-
-      # Convertir de radianes a grados
-      new_lon = new_lon * 180 / Math::PI
-
-      meter.update(lat: new_lat, long: new_lon)
-    end
-  end
-
   task :translate_from_alcia => :environment do |t, args|
     desc "Copy data from bridge tables to main tables"
  
@@ -100,14 +74,23 @@ namespace :bridge do
     end
   end
 
-  task :calculate_neighbors, [:radius] => :environment do |t, args|
+  task :calculate_neighbors => :environment do |t, args|
     desc "Calculate neighbors"
-    MeterNeighbor.delete_all
+    Neighbors.delete_all
 
-    Meter.all.each do |meter|
-      Meter.all.each do |candidate|
-        if meter.distance_to(candidate) < args[:radius].to_f
-          MeterNeighbor.create(meter: meter, neighbor: candidate) unless (meter.id == candidate.id)
+    Meters.all.each do |meter|
+      Meters.all.each do |candidate|
+        if distance(meter.lat, meter.long, candidate.lat, candidate.long) < 
+
+        if meter.nil?
+          puts "Meter #{m.numero_medidor} doesn't exist. Creating it"
+          meter = Meter.create(deveui: m.deveui, meter_number: m.numero_medidor)
+        end
+        
+        client = Client.find_by(service_number: m.id_servicio)
+        if client.nil?
+          puts "Client #{m.id_servicio} doesn't exist. Cannot create association."
+          next
         end
       end
     end
@@ -125,6 +108,10 @@ namespace :bridge do
         hc = HistoricConsumption.where(client: client, month: billing_month).first_or_create
         hc.update(value: total_value, month: billing_month, client: client)
       end
+
+      # Calculate radius mean and most efficient client
+      
     end
   end
 
+end

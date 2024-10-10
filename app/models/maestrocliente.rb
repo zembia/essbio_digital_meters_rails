@@ -1,2 +1,3 @@
 class Maestrocliente < ApplicationRecord
+
 end

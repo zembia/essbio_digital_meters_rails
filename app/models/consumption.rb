@@ -1,3 +1,3 @@
 class Consumption < ApplicationRecord
-  belongs_to :meters
+  belongs_to :meter
 end

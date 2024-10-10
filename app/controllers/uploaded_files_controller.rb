@@ -1,3 +1,5 @@
+require 'csv'    
+
 class UploadedFilesController < ApplicationController
   def index
     @file_types = FileType.all
@@ -10,69 +12,93 @@ class UploadedFilesController < ApplicationController
     uploaded_file.file.attach(params[:file1]) if params[:file1].present?
     month = params[:billing_month]
    
-    if month.present?
-      fixed_day = 1
-      selected_date = Date.new(Date.today.year, month.to_i, fixed_day) # Combina año, mes y día fijo
-    else
-      redirect_to uploaded_file_index_path, alert: "Mes inválido"
-    end
-    
+    if FileType.find_by(id: params[:file_type_id]).tag == "measurement_dates"
+      puts "MEASUREMENT DATES"
+      if month.present?
+        fixed_day = 1
+        selected_date = Date.new(Date.today.year, month.to_i, fixed_day) # Combina año, mes y día fijo
+      else
+        redirect_to uploaded_file_index_path, alert: "Mes inválido"; return
+      end
+    end 
+
     # Guardar las instancias
     if uploaded_file.save
+      #file_path = Rails.application.routes.url_helpers.rails_blob_path(uploaded_file.file, only_path: true)
+      local_file_path = ActiveStorage::Blob.service.send(:path_for, uploaded_file.file.key)
 
       # process file depending on type
       if FileType.find_by(id: params[:file_type_id]).tag == "client_data"
         puts "client_data"
-        import_client_data(uploaded_file.file)
+        errors = []
+        errors = import_client_data(local_file_path)
+        if errors.length > 0
+            msg = "Archivo subido pero con errores: #{errors.join('\n')}"
+        else
+            msg = "Archivo subido con éxito"
+        end
       elsif FileType.find_by(id: params[:file_type_id]).tag == "measurement_dates"
         puts "measurement_dates"
-        import_measuring_dates(uploaded_file.file, selected_date)
+        import_measurement_dates(local_file_path, selected_date)
+        msg = "Archivo subido con éxito"
       elsif FileType.find_by(id: params[:file_type_id]).tag == "fees_table"
         puts "fees_table"
-        import_fees_table(uploaded_file.file)
+        import_fees_table(local_file_path)
+        msg = "Archivo subido con éxito"
       end
 
-      redirect_to uploaded_file_index_path, notice: "Archivos subidos con éxito."
+      redirect_to uploaded_file_index_path, notice: msg
     else
       redirect_to uploaded_file_index_path, alert: "Hubo un error al subir los archivos."
     end
+
   end
 
-  def import_client_data(file) # meter todo esto en una transacción
-    ActiveRecord::Base.transaction do
-      csv_text = File.read(file)
-      csv = CSV.parse(csv_text, :headers => true)
-      csv.each do |row|
-        client_number_field = row[0]
-        client = Client.first_or_create(service_number: client_number_field)
-        raise "Couldn't create client: #{client_number_field}" if meter.nil?
-       
-        meter_number_field = row[1]
-        meter = Meter.first_or_create(meter_number: meter_number_field)
-        
-        client_meters = ClientMeter.where(client: client, meter: meter).first_or_create
+  def import_client_data(file) 
+    csv_text = File.read(file)
+    csv = CSV.parse(csv_text, :headers => true)
 
-        # Obtain Location and Group (lote) from "Route" field
-        location_field = row[3][0..2]
-        location = Location.find_by(number: location_field.to_i) # Location instances are created when fees table is read
-        raise "Location not found: #{location_field}" if location.nil?
+    errors = []
 
-        group_field = row[3][3..5]
-        group = Group.find_by(number: group_field.to_i) # Group instances are created when measurement_dates table is read
-        raise "Group not found: #{group_field}" if group.nil?
-
-        client.update(location: location, group: group)
-        puts "#{client_number_field}, #{location_field}, #{group_field}"
+    puts "CSV file row count: #{csv.length}"
+  
+    csv.each do |row|
+      client_number_field = row[0]
+     
+      # Obtain Location and Group (lote) from "Route" field
+      location_field = row[3][0..2]
+      location = Location.find_by(code: location_field.to_i) # Location instances are created when fees table is read
+      if location.nil?
+        errors.push("Couldn't create #{client_number_field} client because location #{location_field} doesn't exist in DB")
+        next
       end
+
+      group_field = row[3][3..5]
+      group = Group.find_by(number: group_field.to_i) # Group instances are created when measurement_dates table is read
+      if group.nil?
+        errors.push("Couldn't create #{client_number_field} client because group #{group_field} doesn't exist in DB")
+        next
+      end
+
+      applied_fee_type = AppliedFeeType.find_by(label: row[11])
+      if applied_fee_type.nil?
+        errors.push("Couldn't create #{client_number_field} client because fee type #{row[11]} doesn't exist in DB")
+        next
+      end
+
+      client = Client.where(service_number: client_number_field).first_or_create
+      client.update(location: location, group: group, route: row[3], client_name: row[6], address: row[7], applied_fee_type: applied_fee_type, phone_number: row[20], mobile_number: row[21], email: row[22])
     end
+
+    errors
   end
 
-  # Imports measuring dates from CSV
-  def import_measuring_dates(file, month)
+  # Imports easuring dates from CSV
+  def import_measurement_dates(file, month)
     ActiveRecord::Base.transaction do
-      month = Date.parse(month).change(day: 1) # billing month
-
-      csv_text = File.read(args[:fn])
+      MeasurementDate.where(month: month).delete_all
+      
+      csv_text = File.read(file)
       csv = CSV.parse(csv_text, :headers => true)
       csv.each do |row|
         group_list = row[0].split(" - ") 
@@ -81,7 +107,6 @@ class UploadedFilesController < ApplicationController
         group_list.each do |g|
           group = Group.where(number: g.to_i).first_or_create
           
-          MeasurementDate.where(month: month).delete_all
           MeasurementDate.create!(group: group, last_date: Date.parse(row[1]), current_date: Date.parse(row[2]), month: month)
         end
       end
@@ -92,7 +117,7 @@ class UploadedFilesController < ApplicationController
   def import_fees_table(file)
     ActiveRecord::Base.transaction do
 
-      csv_text = File.read(args[:fn])
+      csv_text = File.read(file)
       csv = CSV.parse(csv_text, :headers => true)
 
       csv.each do |row|

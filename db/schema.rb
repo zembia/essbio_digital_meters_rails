@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_10_07_181012) do
+ActiveRecord::Schema[7.2].define(version: 2024_10_10_163036) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -71,12 +71,12 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_07_181012) do
   end
 
   create_table "client_meters", force: :cascade do |t|
-    t.bigint "user_id"
     t.bigint "meter_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "client_id"
+    t.index ["client_id"], name: "index_client_meters_on_client_id"
     t.index ["meter_id"], name: "index_client_meters_on_meter_id"
-    t.index ["user_id"], name: "index_client_meters_on_user_id"
   end
 
   create_table "clients", force: :cascade do |t|
@@ -91,6 +91,8 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_07_181012) do
     t.datetime "updated_at", null: false
     t.bigint "group_id"
     t.bigint "location_id"
+    t.bigint "applied_fee_type_id"
+    t.index ["applied_fee_type_id"], name: "index_clients_on_applied_fee_type_id"
     t.index ["group_id"], name: "index_clients_on_group_id"
     t.index ["location_id"], name: "index_clients_on_location_id"
   end
@@ -123,10 +125,10 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_07_181012) do
     t.decimal "current_consumption"
     t.decimal "current_consumption_clp"
     t.decimal "projected_consumption_clp"
-    t.bigint "meter_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["meter_id"], name: "index_data_summaries_on_meter_id"
+    t.bigint "client_id"
+    t.index ["client_id"], name: "index_data_summaries_on_client_id"
   end
 
   create_table "file_types", force: :cascade do |t|
@@ -143,11 +145,11 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_07_181012) do
 
   create_table "historic_consumptions", force: :cascade do |t|
     t.decimal "value"
-    t.bigint "meter_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.date "month"
-    t.index ["meter_id"], name: "index_historic_consumptions_on_meter_id"
+    t.bigint "client_id"
+    t.index ["client_id"], name: "index_historic_consumptions_on_client_id"
   end
 
   create_table "locations", force: :cascade do |t|
@@ -162,6 +164,22 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_07_181012) do
     t.index ["code"], name: "index_locations_on_code"
   end
 
+  create_table "maestroclientes", force: :cascade do |t|
+    t.string "deveui"
+    t.string "numero_medidor"
+    t.string "id_servicio"
+    t.integer "cod_localidad"
+    t.integer "lote"
+    t.string "direccion"
+    t.string "nombre_cliente"
+    t.float "diametro"
+    t.string "marca"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.float "latitud"
+    t.float "longitud"
+  end
+
   create_table "measurement_dates", force: :cascade do |t|
     t.bigint "group_id"
     t.date "last_date"
@@ -172,11 +190,22 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_07_181012) do
     t.index ["group_id"], name: "index_measurement_dates_on_group_id"
   end
 
+  create_table "meter_neighbors", force: :cascade do |t|
+    t.bigint "meter_id", null: false
+    t.bigint "neighbor_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["meter_id"], name: "index_meter_neighbors_on_meter_id"
+    t.index ["neighbor_id"], name: "index_meter_neighbors_on_neighbor_id"
+  end
+
   create_table "meters", force: :cascade do |t|
     t.string "meter_number"
     t.string "deveui"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.float "lat"
+    t.float "long"
     t.index ["deveui"], name: "index_meters_on_deveui", unique: true
   end
 
@@ -244,14 +273,17 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_07_181012) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "client_meters", "clients"
   add_foreign_key "client_meters", "meters"
-  add_foreign_key "client_meters", "users"
+  add_foreign_key "clients", "applied_fee_types"
   add_foreign_key "clients", "groups"
   add_foreign_key "clients", "locations"
   add_foreign_key "consumptions", "meters"
-  add_foreign_key "data_summaries", "meters"
-  add_foreign_key "historic_consumptions", "meters"
+  add_foreign_key "data_summaries", "clients"
+  add_foreign_key "historic_consumptions", "clients"
   add_foreign_key "measurement_dates", "groups"
+  add_foreign_key "meter_neighbors", "meters"
+  add_foreign_key "meter_neighbors", "meters", column: "neighbor_id"
   add_foreign_key "notifications", "notification_types"
   add_foreign_key "uploaded_files", "file_types"
   add_foreign_key "user_clients", "clients"
