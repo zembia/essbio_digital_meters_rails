@@ -6,6 +6,9 @@ class User < ApplicationRecord
   
   belongs_to :app
   attr_accessor :app_tag
+  
+  has_many :user_clients
+  has_many :clients, through: :user_clients
 
   validates :email, uniqueness: { scope: :app_id, message: "Email / app pair should be unique" }
 

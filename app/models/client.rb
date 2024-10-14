@@ -7,17 +7,19 @@ class Client < ApplicationRecord
 
   has_many :client_meters
   has_many :meters, through: :client_meters
+  has_many :client_notifications
+  has_many :notifications, through: :client_notifications
 
   # Returns meter which is currently associated with client (most recently)
   def current_meter
-    meters.last
+    client_meters.order(created_at: :desc).first.meter
   end
 
   # Consumption from last measruement date until today
-  def current_consumption_m3
+  def current_consumption_m3(sd)
     sum = 0
     meters.each do |meter|
-      sum = sum + meter.current_consumption_m3(start_date, Date.today)
+      sum = sum + meter.total_consumption_m3(sd, Date.today)
     end
     sum
   end 
@@ -43,9 +45,11 @@ class Client < ApplicationRecord
   end
 
   def projected_consumption
-    total_days = (Date.today - Client.second.last_measurement_date).to_i.abs
-    diary_consumption = current_consumption/total_days
-    diary_consumption*Time.days_in_month(Date.today.month,Date.today.year)
+    current_days = (Date.today - Client.second.last_measurement_date).to_i.abs
+    total_days = Time.days_in_month(Date.today.month,Date.today.year)
+    ratio = current_days/total_days
+    cc = current_consumption
+    { m3: cc[:m3]*ratio, clp: cc[:clp]*ratio }
   end
 
   def neighborhood_statistics
@@ -80,4 +84,45 @@ class Client < ApplicationRecord
     group.measurement_dates.order(current_date: :desc).first.month
   end
 
+  def history
+    hcs = historic_consumptions.order(month: :desc).limit(12)
+    current_hc = current_consumption
+    current_hc[:month] = get_month_label(current_billing_month)
+    current_hc[:year] = current_billing_month.strftime("%Y")
+    history_list = [current_hc]
+
+    hcs.each do |hc|
+      history_list.push({ month: get_month_label(hc.month), year: hc.month.year.to_s, m3: hc.m3, clp: hc.clp })
+    end
+
+    history_list
+  end
+
+  def get_month_label(my_date)
+    months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    months[my_date.month-1]
+  end
+
+  def summary 
+    { current_consumption: current_consumption, 
+      projected_consumption: projected_consumption,  
+      last_measurement_date: last_measurement_date,
+      current_measurement_date: current_measurement_date,
+      service_number: service_number,
+      current_billing_month: current_billing_month }
+  end
+
+  def active_client_notifications
+    client_notifications.where(status: "active")
+  end
+ 
+  def notification_summary
+    acns = client_notifications.where(status: "active")
+    output = []
+
+    acns.each do |acn|
+      output.push({message: acn.notification.message, status: acn.status, created_at: acn.created_at })
+    end
+    output
+  end 
 end

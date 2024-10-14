@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_10_10_163036) do
+ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -79,6 +79,19 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_10_163036) do
     t.index ["meter_id"], name: "index_client_meters_on_meter_id"
   end
 
+  create_table "client_notifications", force: :cascade do |t|
+    t.bigint "notification_id"
+    t.datetime "seen_at", precision: nil
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "client_id"
+    t.bigint "meter_id"
+    t.string "status"
+    t.index ["client_id"], name: "index_client_notifications_on_client_id"
+    t.index ["meter_id"], name: "index_client_notifications_on_meter_id"
+    t.index ["notification_id"], name: "index_client_notifications_on_notification_id"
+  end
+
   create_table "clients", force: :cascade do |t|
     t.string "service_number"
     t.string "address"
@@ -144,11 +157,12 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_10_163036) do
   end
 
   create_table "historic_consumptions", force: :cascade do |t|
-    t.decimal "value"
+    t.decimal "m3"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.date "month"
     t.bigint "client_id"
+    t.float "clp"
     t.index ["client_id"], name: "index_historic_consumptions_on_client_id"
   end
 
@@ -211,6 +225,7 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_10_163036) do
 
   create_table "notification_types", force: :cascade do |t|
     t.string "name"
+    t.string "tag"
   end
 
   create_table "notifications", force: :cascade do |t|
@@ -239,16 +254,6 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_10_163036) do
     t.index ["user_id"], name: "index_user_clients_on_user_id"
   end
 
-  create_table "user_notifications", force: :cascade do |t|
-    t.bigint "notification_id"
-    t.bigint "user_id"
-    t.datetime "seen_at", precision: nil
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["notification_id"], name: "index_user_notifications_on_notification_id"
-    t.index ["user_id"], name: "index_user_notifications_on_user_id"
-  end
-
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
@@ -275,6 +280,9 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_10_163036) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "client_meters", "clients"
   add_foreign_key "client_meters", "meters"
+  add_foreign_key "client_notifications", "clients"
+  add_foreign_key "client_notifications", "meters"
+  add_foreign_key "client_notifications", "notifications"
   add_foreign_key "clients", "applied_fee_types"
   add_foreign_key "clients", "groups"
   add_foreign_key "clients", "locations"
@@ -288,7 +296,5 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_10_163036) do
   add_foreign_key "uploaded_files", "file_types"
   add_foreign_key "user_clients", "clients"
   add_foreign_key "user_clients", "users"
-  add_foreign_key "user_notifications", "notifications"
-  add_foreign_key "user_notifications", "users"
   add_foreign_key "users", "apps"
 end

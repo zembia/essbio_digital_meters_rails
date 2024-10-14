@@ -1,3 +1,3 @@
 class HistoricConsumption < ApplicationRecord
-  belongs_to :meter
+  belongs_to :client
 end

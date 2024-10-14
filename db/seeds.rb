@@ -11,5 +11,7 @@
 
 App.delete_all
 
-App.create(name: "Essbio", tag: "essbio") 
-App.create(name: "Nuevo Sur", tag: "nuevo_sur") 
+App.create(name: "Essbio", tag: "essbio")
+App.create(name: "Nuevo Sur", tag: "nuevo_sur")
+
+

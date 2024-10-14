@@ -1,6 +1,9 @@
 Rails.application.routes.draw do
+  resources :meters, only: [:index, :show]
+  resources :notifications, only: [:index, :show]
+  #get "meters/index"
+  #get "meters/show"
   devise_for :users, controllers: { sessions: 'users/sessions', registrations: 'users/registrations', passwords: 'users/passwords' }
-
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -18,4 +21,5 @@ Rails.application.routes.draw do
 
   get 'uploaded_file/index', to: 'uploaded_files#index'
   post 'uploaded_file/upload_files', to: 'uploaded_files#upload_files', as: 'upload_files'
+
 end
