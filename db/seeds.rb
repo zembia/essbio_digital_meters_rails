@@ -14,4 +14,10 @@ App.delete_all
 App.create(name: "Essbio", tag: "essbio")
 App.create(name: "Nuevo Sur", tag: "nuevo_sur")
 
+NotificationType.create(name: "Fuga de agua", tag: "leakage")
+AlertType.create(name: "Leakage", tag: "leakage")
+
+Notification.create(notification_type: NotificationType.find_by(tag: "leakage"), message: "Su medidor reporta una posible fuga de agua.", level: 1)
+Notification.create(notification_type: NotificationType.find_by(tag: "leakage"), message: "Su medidor sigue reportando una posible fuga de agua.", level: 2)
+Notification.create(notification_type: NotificationType.find_by(tag: "leakage"), message: "Su medidor sigue reportando una posible fuga de agua por tercer día consecutivo.", level: 3)
 

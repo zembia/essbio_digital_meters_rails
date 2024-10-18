@@ -1,0 +1,2 @@
+class AlertType < ApplicationRecord
+end

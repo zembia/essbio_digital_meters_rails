@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
+ActiveRecord::Schema[7.2].define(version: 2024_10_17_175455) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -42,13 +42,31 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "alert_types", force: :cascade do |t|
+    t.string "tag"
+    t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "alertas", force: :cascade do |t|
     t.string "deveui"
     t.integer "lectura1"
-    t.string "statemesages"
+    t.string "statemessages"
     t.datetime "logdate"
     t.date "fecha_logdate"
     t.time "hora_logdate"
+  end
+
+  create_table "alerts", force: :cascade do |t|
+    t.integer "lectura1"
+    t.datetime "logdate"
+    t.bigint "meter_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "alert_type_id", null: false
+    t.index ["alert_type_id"], name: "index_alerts_on_alert_type_id"
+    t.index ["meter_id"], name: "index_alerts_on_meter_id"
   end
 
   create_table "applied_fee_types", force: :cascade do |t|
@@ -79,6 +97,15 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
     t.index ["meter_id"], name: "index_client_meters_on_meter_id"
   end
 
+  create_table "client_neighbors", force: :cascade do |t|
+    t.bigint "client_id", null: false
+    t.bigint "neighbor_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_client_neighbors_on_client_id"
+    t.index ["neighbor_id"], name: "index_client_neighbors_on_neighbor_id"
+  end
+
   create_table "client_notifications", force: :cascade do |t|
     t.bigint "notification_id"
     t.datetime "seen_at", precision: nil
@@ -105,6 +132,8 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
     t.bigint "group_id"
     t.bigint "location_id"
     t.bigint "applied_fee_type_id"
+    t.float "lat"
+    t.float "long"
     t.index ["applied_fee_type_id"], name: "index_clients_on_applied_fee_type_id"
     t.index ["group_id"], name: "index_clients_on_group_id"
     t.index ["location_id"], name: "index_clients_on_location_id"
@@ -190,8 +219,6 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
     t.string "marca"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.float "latitud"
-    t.float "longitud"
   end
 
   create_table "measurement_dates", force: :cascade do |t|
@@ -204,23 +231,21 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
     t.index ["group_id"], name: "index_measurement_dates_on_group_id"
   end
 
-  create_table "meter_neighbors", force: :cascade do |t|
-    t.bigint "meter_id", null: false
-    t.bigint "neighbor_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["meter_id"], name: "index_meter_neighbors_on_meter_id"
-    t.index ["neighbor_id"], name: "index_meter_neighbors_on_neighbor_id"
-  end
-
   create_table "meters", force: :cascade do |t|
     t.string "meter_number"
     t.string "deveui"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.float "lat"
-    t.float "long"
     t.index ["deveui"], name: "index_meters_on_deveui", unique: true
+  end
+
+  create_table "notification_alerts", force: :cascade do |t|
+    t.bigint "client_notification_id", null: false
+    t.bigint "alert_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["alert_id"], name: "index_notification_alerts_on_alert_id"
+    t.index ["client_notification_id"], name: "index_notification_alerts_on_client_notification_id"
   end
 
   create_table "notification_types", force: :cascade do |t|
@@ -234,6 +259,7 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "generated_at", precision: nil
+    t.integer "level"
     t.index ["notification_type_id"], name: "index_notifications_on_notification_type_id"
   end
 
@@ -278,8 +304,12 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "alerts", "alert_types"
+  add_foreign_key "alerts", "meters"
   add_foreign_key "client_meters", "clients"
   add_foreign_key "client_meters", "meters"
+  add_foreign_key "client_neighbors", "clients"
+  add_foreign_key "client_neighbors", "clients", column: "neighbor_id"
   add_foreign_key "client_notifications", "clients"
   add_foreign_key "client_notifications", "meters"
   add_foreign_key "client_notifications", "notifications"
@@ -290,8 +320,8 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_14_171556) do
   add_foreign_key "data_summaries", "clients"
   add_foreign_key "historic_consumptions", "clients"
   add_foreign_key "measurement_dates", "groups"
-  add_foreign_key "meter_neighbors", "meters"
-  add_foreign_key "meter_neighbors", "meters", column: "neighbor_id"
+  add_foreign_key "notification_alerts", "alerts"
+  add_foreign_key "notification_alerts", "client_notifications"
   add_foreign_key "notifications", "notification_types"
   add_foreign_key "uploaded_files", "file_types"
   add_foreign_key "user_clients", "clients"

@@ -10,21 +10,29 @@ class Client < ApplicationRecord
   has_many :client_notifications
   has_many :notifications, through: :client_notifications
 
+  has_many :client_neighbors
+  has_many :neighbors, through: :client_neighbors
+
   # Returns meter which is currently associated with client (most recently)
   def current_meter
     client_meters.order(created_at: :desc).first.meter
   end
 
-  # Consumption from last measruement date until today
-  def current_consumption_m3(sd)
+  # Liters consumed between two dates
+  def total_consumption_liters(sd, ed)
     sum = 0
     meters.each do |meter|
-      sum = sum + meter.total_consumption_m3(sd, Date.today)
+      sum = sum + meter.total_consumption_liters(sd, ed)
     end
     sum
   end 
 
-  def m3_to_clp(cc)
+  # Consumption from last measruement date up today
+  def current_consumption_liters(sd)
+    total_consumption_liters(sd, Date.today)
+  end 
+
+  def liters_to_clp(cc)
     base_mult = applied_fee_type.base ? 1 : 0
     ap_mult = applied_fee_type.ap ? 1 : 0
     al_mult = applied_fee_type.al ? 1 : 0
@@ -34,36 +42,50 @@ class Client < ApplicationRecord
   end
 
   def current_consumption_clp
-    cc = current_consumption_m3(start_date)
-    clp = m3_to_clp(cc)
+    cc = current_consumption_liters(start_date)
+    clp = liters_to_clp(cc)
   end
 
   def current_consumption
-    cc = current_consumption_m3(start_date)
-    clp = m3_to_clp(cc)
-    { m3: cc, clp: clp}
+    cc = current_consumption_liters(start_date)
+    clp = liters_to_clp(cc)
+    { liters: cc, clp: clp}
   end
 
   def projected_consumption
-    current_days = (Date.today - Client.second.last_measurement_date).to_i.abs
-    total_days = Time.days_in_month(Date.today.month,Date.today.year)
+    current_days = (Date.today - start_date).to_i
+    total_days = 365.0/12.0 # 30.44: average days in month # Time.days_in_month(Date.today.month,Date.today.year)
     ratio = current_days/total_days
     cc = current_consumption
-    { m3: cc[:m3]*ratio, clp: cc[:clp]*ratio }
+    { liters: cc[:liters]*ratio, clp: cc[:clp]*ratio }
   end
 
+  #def neighborhood_statistics
+  #  means = []
+  #  minimums = []
+
+  #  meters.all.each do |meter|
+  #    s = meter.neighborhood_statistics(start_date, Date.today)
+  #    means.push(s[:mean])
+  #    minimums.push(s[:minimum])
+  #  end
+  #  
+  #  { mean: means.reduce(0,:+).to_f/means.size, minimum: minimums.min }
+  #end
+  
   def neighborhood_statistics
-    means = []
-    minimums = []
-
-    meters.all.each do |meter|
-      s = meter.neighborhood_statistics(start_date, Date.today)
-      means.push(s[:mean])
-      minimums.push(s[:minimum])
+    end_date = Date.today
+    consumption_list = []
+    neighbors.all.each do |neighbor|
+      consumption_list.push(neighbor.total_consumption_liters(start_date, end_date))
     end
-    
-    { mean: means.reduce(0,:+).to_f/means.size, minimum: minimums.min }
+
+    #consumption_list = consumption_list.reject { |num| num < 1 } # discard total consumptions close to zero 
+    consumption_list = discard_outliers(consumption_list, 0.05) # discard 0.05% of outliers
+
+    { mean: consumption_list.reduce(0,:+).to_f/consumption_list.size, minimum: consumption_list.min }
   end
+
 
   def current_measurement_date
     group.measurement_dates.order(current_date: :desc).first.current_date
@@ -92,7 +114,7 @@ class Client < ApplicationRecord
     history_list = [current_hc]
 
     hcs.each do |hc|
-      history_list.push({ month: get_month_label(hc.month), year: hc.month.year.to_s, m3: hc.m3, clp: hc.clp })
+      history_list.push({ month: get_month_label(hc.month), year: hc.month.year.to_s, liters: hc.liters, clp: hc.clp })
     end
 
     history_list
@@ -125,4 +147,46 @@ class Client < ApplicationRecord
     end
     output
   end 
+  
+  def find_client_notification(start_date, end_date, type_tag)
+    ClientNotification.joins(notification: :notification_type).where(client_id: id, created_at: start_date.beginning_of_day..end_date.end_of_day, notification_type: {tag: type_tag}).order(created_at: :asc).first
+  end
+
+  def distance_to(candidate)
+    lat1 = lat
+    lon1 = long
+    lat2 = candidate.lat
+    lon2 = candidate.long
+
+    earth_radius = 6_371_000 # Radio de la Tierra en metros
+    dlat = Client.to_rad(lat2 - lat1)
+    dlon = Client.to_rad(lon2 - lon1)
+
+    a = Math.sin(dlat / 2) * Math.sin(dlat / 2) +
+      Math.cos(Client.to_rad(lat1)) * Math.cos(Client.to_rad(lat2)) *
+        Math.sin(dlon / 2) * Math.sin(dlon / 2)
+    c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+    earth_radius * c # Distancia en metros
+  end
+
+  def self.to_rad(degrees)
+    degrees * Math::PI / 180
+  end
+
+  def discard_outliers(data, percentage)
+    return data if data.empty?
+  
+    sorted_data = data.sort
+    size = sorted_data.size
+  
+    # Calculate the indices for the bottom and top 10%
+    lower_index = (size * percentage).ceil - 1
+    upper_index = (size * (1-percentage)).floor
+  
+    # Create a new array excluding the bottom 10% and top 10%
+    filtered_data = sorted_data[(lower_index + 1)..upper_index]
+  
+    filtered_data
+  end
 end
