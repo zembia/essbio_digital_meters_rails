@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_10_17_175455) do
+ActiveRecord::Schema[7.2].define(version: 2024_10_18_165402) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -186,7 +186,7 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_17_175455) do
   end
 
   create_table "historic_consumptions", force: :cascade do |t|
-    t.decimal "m3"
+    t.decimal "liters"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.date "month"

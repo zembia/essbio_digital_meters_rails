@@ -60,6 +60,16 @@ class Client < ApplicationRecord
     { liters: cc[:liters]*ratio, clp: cc[:clp]*ratio }
   end
 
+  def hourly_consumptions(date)
+    cs_list = []
+    cs = current_meter.get_consumptions(date.beginning_of_day, date.end_of_day).order(measured_at: :asc)
+
+    cs.each do |c|
+      cs_list.push({liters: c.value, hour: "#{c.measured_at.hour}:00"})
+    end
+    cs_list
+  end
+
   #def neighborhood_statistics
   #  means = []
   #  minimums = []

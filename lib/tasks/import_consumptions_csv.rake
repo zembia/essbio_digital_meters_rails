@@ -187,6 +187,7 @@ namespace :bridge do
       end
     end
   end
+
   task :update_consumption_date => :environment do |t, args|
     Consumption.all.each do |c|
       c.update(measured_at: c.measured_at + 1.months)

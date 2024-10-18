@@ -1,6 +1,8 @@
 Rails.application.routes.draw do
   resources :meters, only: [:index, :show]
+  resources :clients, only: [:index, :show]
   resources :notifications, only: [:index, :show]
+  resources :consumptions, only: [:index, :show]
   #get "meters/index"
   #get "meters/show"
   devise_for :users, controllers: { sessions: 'users/sessions', registrations: 'users/registrations', passwords: 'users/passwords' }
