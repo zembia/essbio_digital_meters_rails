@@ -7,8 +7,8 @@ class NotificationsController < ApplicationController
 
   def show
     client = current_user.clients.find_by(service_number: params[:id])
-
-    render json: { notifications: client.notification_summary } 
+    summary = client.nil? ? [] : client.notification_summary
+    render json: { notifications: summary } 
   end
 
   #def configure_permitted_parameters

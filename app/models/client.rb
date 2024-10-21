@@ -149,11 +149,12 @@ class Client < ApplicationRecord
   end
  
   def notification_summary
-    acns = client_notifications.where(status: "active")
+    acns = client_notifications.where(status: "active") # retrive all active client notifications for this client
     output = []
 
     acns.each do |acn|
-      output.push({message: acn.notification.message, status: acn.status, created_at: acn.created_at })
+      oldest_alert_dt = acn.alerts.order(:logdate).first.logdate # oldest associated alert 
+      output.push({title: acn.notification.title, message: acn.notification.message, icon: acn.notification.icon, alert_date: oldest_alert_dt, status: acn.status, created_at: acn.created_at })
     end
     output
   end 

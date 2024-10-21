@@ -87,7 +87,7 @@ class UploadedFilesController < ApplicationController
       end
 
       client = Client.where(service_number: client_number_field).first_or_create
-      client.update(location: location, group: group, route: row[3], client_name: row[6], address: row[7], applied_fee_type: applied_fee_type, phone_number: row[20], mobile_number: row[21], email: row[22])
+      client.update(location: location, group: group, route: row[3], client_name: row[6], address: row[7], applied_fee_type: applied_fee_type, phone_number: row[20], mobile_number: row[21], email: row[22], lat: row[28].to_f, long: row[29].to_f)
     end
 
     errors

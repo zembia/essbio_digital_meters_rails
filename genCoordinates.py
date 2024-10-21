@@ -25,6 +25,7 @@ def generate_coordinates(center_lat, center_lon, radius, count):
         new_lon = math.degrees(new_lon)
 
         coordinates.append((new_lat, new_lon))
+        a = print(f"{new_lat};{new_lon}".replace(".",","))
 
     return coordinates
 
@@ -42,4 +43,3 @@ with open('coordinates.csv', mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(['Latitud', 'Longitud'])  # Escribir encabezados
     writer.writerows(coordinates)  # Escribir las coordenadas
-
